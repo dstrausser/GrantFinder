@@ -25,10 +25,18 @@ export default function SearchForm({ onSearch, isLoading }: SearchFormProps) {
 
   const filteredCities = useMemo(() => {
     if (!city) return cities;
+    const lower = city.toLowerCase();
     return cities.filter((c) =>
-      c.toLowerCase().includes(city.toLowerCase())
+      c.toLowerCase().includes(lower)
     );
   }, [cities, city]);
+
+  // Hide suggestions if the user has already typed an exact match
+  const exactMatchExists = cities.some(
+    (c) => c.toLowerCase() === city.toLowerCase()
+  );
+  const shouldShowSuggestions =
+    showCitySuggestions && state && filteredCities.length > 0 && !exactMatchExists;
 
   function handleStateChange(newState: string) {
     setState(newState);
@@ -98,11 +106,11 @@ export default function SearchForm({ onSearch, isLoading }: SearchFormProps) {
             onChange={(e) => handleCityChange(e.target.value)}
             onFocus={() => setShowCitySuggestions(true)}
             onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
-            placeholder={state ? "Type a city name..." : "Select a state first"}
+            placeholder={state ? "Type any city name or pick from suggestions..." : "Select a state first"}
             disabled={!state}
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
           />
-          {showCitySuggestions && filteredCities.length > 0 && state && (
+          {shouldShowSuggestions && (
             <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
               {filteredCities.map((c) => (
                 <li
@@ -117,20 +125,20 @@ export default function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           )}
         </div>
 
-        {/* County (auto-populated) */}
+        {/* County (auto-populated or manual) */}
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-gray-700">
             County{" "}
             <span className="text-xs font-normal text-gray-400">
-              (auto-populated)
+              (auto-fills from city, or type manually)
             </span>
           </label>
           <input
             type="text"
             value={county}
-            readOnly
-            placeholder="Will auto-populate from city"
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-600 shadow-sm"
+            onChange={(e) => setCounty(e.target.value)}
+            placeholder="Auto-fills from city, or type your county"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
           />
         </div>
 
