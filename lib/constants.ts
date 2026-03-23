@@ -25,8 +25,8 @@ export interface SearchParams {
   state: string;
   city: string;
   county: string;
-  nonprofitType: NonprofitType | "";
-  grantType: GrantType | "";
+  nonprofitType: NonprofitType | "Any" | "";
+  grantType: GrantType | "Any" | "";
 }
 
 export interface Grant {
@@ -40,4 +40,5 @@ export interface Grant {
   deadline: string;
   applicationUrl: string;
   status: "Open" | "Upcoming" | "Rolling";
+  grantCategory: string;
 }

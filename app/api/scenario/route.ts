@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import type { Grant, SearchParams } from "@/lib/constants";
+import type { Grant } from "@/lib/constants";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -8,41 +8,37 @@ const anthropic = new Anthropic({
 
 export async function POST(request: NextRequest) {
   try {
-    const params: SearchParams = await request.json();
+    const { scenario, state, city, county } = await request.json();
 
-    if (!params.state || !params.city || !params.nonprofitType || !params.grantType) {
+    if (!scenario) {
       return NextResponse.json(
-        { error: "Missing required search parameters" },
+        { error: "Please describe your scenario" },
         { status: 400 }
       );
     }
 
-    const nonprofitFilter = params.nonprofitType === "Any"
-      ? "All non-profit types (Healthcare, Education, Housing Assistance, and others)"
-      : `${params.nonprofitType} non-profit organizations`;
-
-    const grantFilter = params.grantType === "Any"
-      ? "All grant categories (IT, Security, Finance, Hardware, Software, Training, Infrastructure, Research, Community Development, Environmental, Capital Improvement, and others)"
-      : `the ${params.grantType} category`;
-
     const today = new Date().toISOString().split("T")[0];
 
-    const prompt = `You are an expert grant researcher. Search for and identify all relevant state, local, and federal grants that match the following criteria. Focus ONLY on grants with OPEN or UPCOMING application windows.
+    const locationContext = state && city
+      ? `The organization is located in ${city}, ${county ? county + ", " : ""}${state}.`
+      : "No specific location was provided, so search broadly across federal, state, and local grants.";
+
+    const prompt = `You are an expert grant researcher. A non-profit organization has described their situation and needs. Analyze their scenario and find the most relevant grants that could help fund their project or need.
 
 CRITICAL: Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
 
-Search Criteria:
-- Location: ${params.city}, ${params.county ? params.county + ", " : ""}${params.state}
-- Non-Profit Type: ${nonprofitFilter}
-- Grant Category: ${grantFilter}
+Scenario described by the organization:
+"${scenario}"
+
+${locationContext}
 
 Instructions:
-1. Search comprehensively across federal (grants.gov, HHS, HUD, DOE, USDA, etc.), state-level, and local/county grant programs.
-2. ONLY include grants where the deadline is AFTER ${today} or the grant has rolling/continuous applications.
-3. For each grant found, provide accurate and detailed information.
-4. Focus on grants specifically relevant to ${nonprofitFilter} in ${grantFilter}.
+1. Analyze the scenario to understand what type of funding they need.
+2. Search comprehensively across federal (grants.gov, HHS, HUD, DOE, USDA, FCC, etc.), state-level, and local/county grant programs.
+3. Match grants that are most relevant to their specific described need.
+4. ONLY include grants where the deadline is AFTER ${today} or the grant has rolling/continuous applications.
 5. Include both well-known major grants and lesser-known local opportunities.
-6. Also include a "grantCategory" field to classify each grant for filtering purposes.
+6. Prioritize grants that most closely match the described scenario.
 
 Return your response as a JSON array of grant objects. Each object must have exactly these fields:
 - "name": Full official name of the grant program
@@ -55,7 +51,8 @@ Return your response as a JSON array of grant objects. Each object must have exa
 - "deadline": Application deadline (must be after ${today}) or "Rolling" if applications are accepted on a rolling basis
 - "applicationUrl": The URL where applications can be submitted, or "N/A" if not available
 - "status": One of "Open", "Upcoming", or "Rolling"
-- "grantCategory": The primary category this grant falls under (e.g., "IT", "Security", "Finance", "Hardware", "Software", "Training & Workforce Development", "Infrastructure", "Research", "Community Development", "Environmental", "Capital Improvement", or other relevant category)
+- "grantCategory": The primary category this grant falls under (e.g., "IT", "Security", "Finance", "Hardware", "Software", "Training & Workforce Development", "Infrastructure", "Research", "Community Development", "Environmental", "Capital Improvement", "Telecommunications", or other relevant category)
+- "matchReason": A 1-2 sentence explanation of why this grant is relevant to the described scenario
 
 Return ONLY the JSON array, no other text. If no grants are found, return an empty array [].
 Aim to find at least 5-10 relevant grants if possible.`;
@@ -63,12 +60,7 @@ Aim to find at least 5-10 relevant grants if possible.`;
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
     });
 
     const content = message.content[0];
@@ -79,13 +71,12 @@ Aim to find at least 5-10 relevant grants if possible.`;
       );
     }
 
-    // Extract JSON from the response (handle markdown code blocks)
     let jsonText = content.text.trim();
     if (jsonText.startsWith("```")) {
       jsonText = jsonText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     }
 
-    let grants: Grant[];
+    let grants: (Grant & { matchReason?: string })[];
     try {
       grants = JSON.parse(jsonText);
     } catch {
@@ -98,7 +89,7 @@ Aim to find at least 5-10 relevant grants if possible.`;
 
     return NextResponse.json({ grants });
   } catch (error) {
-    console.error("Grant search error:", error);
+    console.error("Scenario search error:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });

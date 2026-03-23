@@ -155,6 +155,7 @@ export default function SearchForm({ onSearch, isLoading }: SearchFormProps) {
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
           >
             <option value="">Select non-profit type...</option>
+            <option value="Any">Any (All Types)</option>
             {NONPROFIT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -176,6 +177,7 @@ export default function SearchForm({ onSearch, isLoading }: SearchFormProps) {
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
           >
             <option value="">Select grant type...</option>
+            <option value="Any">Any (All Categories)</option>
             {GRANT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}

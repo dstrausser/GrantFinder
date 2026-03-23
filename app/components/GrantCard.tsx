@@ -1,7 +1,7 @@
 import type { Grant } from "@/lib/constants";
 
 interface GrantCardProps {
-  grant: Grant;
+  grant: Grant & { matchReason?: string };
 }
 
 const levelColors: Record<Grant["level"], string> = {
@@ -35,13 +35,24 @@ export default function GrantCard({ grant }: GrantCardProps) {
         </div>
       </div>
 
-      <p className="mb-1 text-sm font-medium text-indigo-600">
-        {grant.agency}
-      </p>
+      <div className="mb-1 flex items-center gap-2">
+        <p className="text-sm font-medium text-indigo-600">{grant.agency}</p>
+        {grant.grantCategory && (
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+            {grant.grantCategory}
+          </span>
+        )}
+      </div>
 
       <p className="mb-4 text-sm leading-relaxed text-gray-600">
         {grant.description}
       </p>
+
+      {grant.matchReason && (
+        <div className="mb-4 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+          <span className="font-semibold">Why this matches:</span> {grant.matchReason}
+        </div>
+      )}
 
       <div className="space-y-2 border-t border-gray-100 pt-4">
         <div className="flex gap-2 text-sm">
