@@ -24,12 +24,14 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     setGrants([]);
-    setSearchParams({
+    setSearchParams(null);
+
+    const newSearchParams = {
       state: params.state,
       city: params.city,
       nonprofitType: params.nonprofitType,
       grantType: params.grantType,
-    });
+    };
 
     try {
       const response = await fetch("/api/search", {
@@ -41,6 +43,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to search for grants");
       setGrants(data.grants);
+      setSearchParams(newSearchParams);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
@@ -57,12 +60,14 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     setGrants([]);
-    setSearchParams({
+    setSearchParams(null);
+
+    const newSearchParams = {
       state: params.state || "All States",
       city: params.city || "Any City",
       nonprofitType: "Scenario Match",
       grantType: "AI-Matched",
-    });
+    };
 
     try {
       const response = await fetch("/api/scenario", {
@@ -74,6 +79,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to search for grants");
       setGrants(data.grants);
+      setSearchParams(newSearchParams);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
