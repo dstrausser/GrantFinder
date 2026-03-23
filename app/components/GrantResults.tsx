@@ -40,7 +40,7 @@ export default function GrantResults({ grants, searchParams }: GrantResultsProps
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Grant Results</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Found {grants.length} grant{grants.length !== 1 ? "s" : ""} for{" "}
+              Found {grants.length} federal grant{grants.length !== 1 ? "s" : ""} for{" "}
               <span className="font-medium text-gray-700">
                 {searchParams.nonprofitType}
               </span>{" "}
@@ -49,6 +49,9 @@ export default function GrantResults({ grants, searchParams }: GrantResultsProps
                 {searchParams.city}, {searchParams.state}
               </span>{" "}
               ({searchParams.grantType})
+            </p>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Data from Grants.gov — federal grants only
             </p>
           </div>
         </div>

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Grant } from "@/lib/constants";
+import { NONPROFIT_ELIGIBILITY_CODES } from "@/lib/constants";
+import { searchGrants, fetchOpportunitiesBatch, type GrantsGovHit } from "@/lib/grantsGov";
+import { mapOpportunityToGrant, isGrantOpen, isNonprofitEligible } from "@/lib/mapGrant";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,87 +20,158 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
-
-    const locationContext = state && city
-      ? `The organization is located in ${city}, ${county ? county + ", " : ""}${state}.`
-      : "No specific location was provided, so search broadly across federal, state, and local grants.";
-
-    const prompt = `You are an expert grant researcher. A non-profit organization has described their situation and needs. Analyze their scenario and find the most relevant grants that could help fund their project or need.
-
-CRITICAL REQUIREMENTS:
-- Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
-- ONLY include grants where the APPLICANT is a non-profit organization, agency, or institution — NOT grants for individuals. The non-profit is the entity applying for and receiving the funding. For example, if a vocational services non-profit says "I need to replace our phone system", the grant should go to the non-profit organization to fund that purchase — not to an individual person. The non-profit operates programs and services, and needs organizational funding to do so.
-- ONLY include grants that you are confident actually exist as real programs. Do NOT fabricate or invent grant programs.
-
-Scenario described by the organization:
-"${scenario}"
-
-${locationContext}
-
-Instructions:
-1. Analyze the scenario to understand what type of organizational funding the non-profit needs.
-2. Search comprehensively across federal (grants.gov, HHS, HUD, DOE, USDA, FCC, etc.), state-level, and local/county grant programs.
-3. Match grants that are most relevant to their specific described need, where the non-profit is the eligible applicant.
-4. ONLY include grants where the deadline is AFTER ${today} or the grant has rolling/continuous applications.
-5. ONLY include grants where a non-profit organization is an eligible applicant. Exclude grants that are only available to individuals, families, or for-profit businesses.
-6. Include both well-known major grants and lesser-known local opportunities.
-7. Prioritize grants that most closely match the described scenario.
-
-CRITICAL URL RULES — READ CAREFULLY:
-- Do NOT guess, fabricate, or hallucinate any URLs. If you are not 100% certain a URL is correct and leads to the SPECIFIC grant listing page, set applicationUrl to "N/A".
-- A wrong URL is WORSE than no URL. Linking a FEMA grant to an EPA page is unacceptable.
-- For federal grants on grants.gov, only provide a URL if you know the exact opportunity number (e.g., FEMA-2024-0001). The format is https://www.grants.gov/search-results-detail/OPPORTUNITY_NUMBER
-- NEVER link to a general agency homepage (e.g., https://www.fema.gov or https://www.grants.gov). That is NOT helpful.
-- When in doubt, use "N/A" and provide good searchInstructions instead.
-
-Return your response as a JSON array of grant objects. Each object must have exactly these fields:
-- "name": Full official name of the grant program
-- "agency": The administering agency or organization
-- "level": One of "Federal", "State", or "Local"
-- "description": A 2-3 sentence overview of what the grant funds and its purpose
-- "coverage": What expenses/activities the grant covers
-- "eligibility": Key eligibility requirements for non-profits
-- "fundingRange": The funding amount range (e.g., "$10,000 - $500,000")
-- "deadline": Application deadline (must be after ${today}) or "Rolling" if applications are accepted on a rolling basis
-- "applicationUrl": The EXACT URL to the specific grant opportunity page. ONLY provide this if you are 100% certain the URL is correct and goes to THIS SPECIFIC grant. Use "N/A" if you have ANY doubt.
-- "searchInstructions": Step-by-step instructions for the user to find and apply for this grant. ALWAYS include this. Example: "Go to grants.gov and search for 'CFDA 93.224'. Click on the opportunity titled 'Community Health Centers'. Then click 'Apply' to begin the application." or "Visit the Pennsylvania Department of Health website, navigate to 'Funding Opportunities', and search for 'Primary Care Practitioner Loan Repayment Program'."
-- "cfdaNumber": For federal grants, provide the CFDA/Assistance Listing number (e.g., "93.224"). For non-federal grants, use "N/A".
-- "status": One of "Open", "Upcoming", or "Rolling"
-- "grantCategory": The primary category this grant falls under (e.g., "IT", "Security", "Finance", "Hardware", "Software", "Training & Workforce Development", "Infrastructure", "Research", "Community Development", "Environmental", "Capital Improvement", "Telecommunications", or other relevant category)
-- "matchReason": A 1-2 sentence explanation of why this grant is relevant to the described scenario
-
-Return ONLY the JSON array, no other text. If no grants are found, return an empty array [].
-Aim to find at least 5-10 relevant grants if possible.`;
-
-    const message = await anthropic.messages.create({
+    // Phase 1: Use AI to extract search keywords from the scenario
+    const extractionMessage = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
+      max_tokens: 300,
+      messages: [
+        {
+          role: "user",
+          content: `Extract 3-5 search keyword phrases from this nonprofit grant scenario. These keywords will be used to search grants.gov for relevant federal grants.
+
+Scenario: "${scenario}"
+
+Return ONLY a JSON object with this format:
+{"keywords": ["keyword phrase 1", "keyword phrase 2", "keyword phrase 3"]}
+
+Focus on the specific funding needs, industry, and activities described. Make keywords broad enough to find grants but specific enough to be relevant.`,
+        },
+      ],
     });
 
-    const content = message.content[0];
-    if (content.type !== "text") {
+    const extractContent = extractionMessage.content[0];
+    if (extractContent.type !== "text") {
       return NextResponse.json(
-        { error: "Unexpected response format from AI" },
+        { error: "Failed to analyze scenario" },
         { status: 500 }
       );
     }
 
-    let jsonText = content.text.trim();
+    let jsonText = extractContent.text.trim();
     if (jsonText.startsWith("```")) {
       jsonText = jsonText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     }
 
-    let grants: (Grant & { matchReason?: string })[];
+    let keywords: string[];
     try {
-      grants = JSON.parse(jsonText);
+      const parsed = JSON.parse(jsonText);
+      keywords = parsed.keywords || [];
     } catch {
-      console.error("Failed to parse AI response:", content.text);
-      return NextResponse.json(
-        { error: "Failed to parse grant results. Please try again." },
-        { status: 500 }
-      );
+      // Fallback: use the first 5 words of the scenario
+      keywords = [scenario.split(" ").slice(0, 5).join(" ")];
+    }
+
+    // Phase 2: Search Grants.gov with each keyword, deduplicate results
+    const seenIds = new Set<string>();
+    const allHits: { id: string; hit: GrantsGovHit }[] = [];
+
+    for (const keyword of keywords.slice(0, 4)) {
+      try {
+        const searchResult = await searchGrants({
+          keyword,
+          oppStatuses: "posted",
+          eligibilities: NONPROFIT_ELIGIBILITY_CODES,
+          rows: 15,
+        });
+
+        for (const hit of searchResult.oppHits) {
+          if (!seenIds.has(String(hit.id))) {
+            seenIds.add(String(hit.id));
+            allHits.push({ id: String(hit.id), hit });
+          }
+        }
+      } catch (e) {
+        console.error(`Search failed for keyword "${keyword}":`, e);
+      }
+    }
+
+    if (allHits.length === 0) {
+      return NextResponse.json({ grants: [] });
+    }
+
+    // Phase 3: Fetch full details for top hits
+    const topHits = allHits.slice(0, 15);
+    const hitMap = new Map(topHits.map((h) => [h.id, h.hit]));
+    const opportunities = await fetchOpportunitiesBatch(
+      topHits.map((h) => h.id)
+    );
+
+    // Map and filter
+    const grants: Grant[] = opportunities
+      .filter(isNonprofitEligible)
+      .map((opp) => mapOpportunityToGrant(opp, hitMap.get(String(opp.id))))
+      .filter(isGrantOpen);
+
+    if (grants.length === 0) {
+      return NextResponse.json({ grants: [] });
+    }
+
+    // Phase 4: Use AI to rank results and add matchReason
+    const grantSummaries = grants.map((g, i) => ({
+      index: i,
+      name: g.name,
+      description: g.description.slice(0, 200),
+      coverage: g.coverage,
+      fundingRange: g.fundingRange,
+    }));
+
+    const locationContext = state && city
+      ? `Located in ${city}, ${county ? county + ", " : ""}${state}.`
+      : "";
+
+    const rankingMessage = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1500,
+      messages: [
+        {
+          role: "user",
+          content: `A nonprofit described this scenario: "${scenario}"
+${locationContext}
+
+Here are real federal grants found on grants.gov. Rank them by relevance to the scenario and provide a 1-2 sentence matchReason for each explaining why it's relevant.
+
+Grants:
+${JSON.stringify(grantSummaries)}
+
+Return ONLY a JSON array of objects with format:
+[{"index": 0, "matchReason": "Why this grant matches the scenario"}]
+
+Order by most relevant first. Include ALL grants. Be specific about how each grant relates to the described need.`,
+        },
+      ],
+    });
+
+    const rankContent = rankingMessage.content[0];
+    if (rankContent.type === "text") {
+      let rankJson = rankContent.text.trim();
+      if (rankJson.startsWith("```")) {
+        rankJson = rankJson.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+      }
+
+      try {
+        const rankings: { index: number; matchReason: string }[] = JSON.parse(rankJson);
+
+        // Reorder grants and add matchReason
+        const rankedGrants: Grant[] = [];
+        for (const rank of rankings) {
+          const grant = grants[rank.index];
+          if (grant) {
+            rankedGrants.push({ ...grant, matchReason: rank.matchReason });
+          }
+        }
+
+        // Add any grants that weren't ranked
+        for (let i = 0; i < grants.length; i++) {
+          if (!rankings.some((r) => r.index === i)) {
+            rankedGrants.push(grants[i]);
+          }
+        }
+
+        return NextResponse.json({ grants: rankedGrants });
+      } catch {
+        // If ranking fails, return unranked grants
+        return NextResponse.json({ grants });
+      }
     }
 
     return NextResponse.json({ grants });
