@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
 CRITICAL REQUIREMENTS:
 - Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
 - ONLY include grants where the APPLICANT is a non-profit organization, agency, or institution — NOT grants for individuals. The non-profit is the entity applying for and receiving the funding. For example, a vocational services non-profit would apply for a grant to fund its programs that serve individuals — the grant goes to the organization, not to the people it serves.
+- ONLY include grants that you are confident actually exist as real programs. Do NOT fabricate or invent grant programs.
 
 Search Criteria:
 - Location: ${params.city}, ${params.county ? params.county + ", " : ""}${params.state}
@@ -45,7 +46,13 @@ Instructions:
 4. For each grant found, provide accurate and detailed information.
 5. Focus on grants specifically relevant to ${nonprofitFilter} in ${grantFilter}.
 6. Include both well-known major grants and lesser-known local opportunities.
-7. Also include a "grantCategory" field to classify each grant for filtering purposes.
+
+CRITICAL URL RULES — READ CAREFULLY:
+- Do NOT guess, fabricate, or hallucinate any URLs. If you are not 100% certain a URL is correct and leads to the SPECIFIC grant listing page, set applicationUrl to "N/A".
+- A wrong URL is WORSE than no URL. Linking a FEMA grant to an EPA page is unacceptable.
+- For federal grants on grants.gov, only provide a URL if you know the exact opportunity number (e.g., FEMA-2024-0001). The format is https://www.grants.gov/search-results-detail/OPPORTUNITY_NUMBER
+- NEVER link to a general agency homepage (e.g., https://www.fema.gov or https://www.grants.gov). That is NOT helpful.
+- When in doubt, use "N/A" and provide good searchInstructions instead.
 
 Return your response as a JSON array of grant objects. Each object must have exactly these fields:
 - "name": Full official name of the grant program
@@ -56,7 +63,9 @@ Return your response as a JSON array of grant objects. Each object must have exa
 - "eligibility": Key eligibility requirements for non-profits
 - "fundingRange": The funding amount range (e.g., "$10,000 - $500,000")
 - "deadline": Application deadline (must be after ${today}) or "Rolling" if applications are accepted on a rolling basis
-- "applicationUrl": The DIRECT URL to the specific grant opportunity listing or application page — NOT a general agency homepage. For federal grants, provide the specific grants.gov opportunity link (e.g., https://www.grants.gov/search-results-detail/XXXXX). For state/local grants, provide the direct link to that specific grant's page or application portal. If the exact URL is not known, provide "N/A" rather than linking to a general website.
+- "applicationUrl": The EXACT URL to the specific grant opportunity page. ONLY provide this if you are 100% certain the URL is correct and goes to THIS SPECIFIC grant. Use "N/A" if you have ANY doubt.
+- "searchInstructions": Step-by-step instructions for the user to find and apply for this grant. ALWAYS include this. Example: "Go to grants.gov and search for 'CFDA 93.224'. Click on the opportunity titled 'Community Health Centers'. Then click 'Apply' to begin the application." or "Visit the Pennsylvania Department of Health website, navigate to 'Funding Opportunities', and search for 'Primary Care Practitioner Loan Repayment Program'."
+- "cfdaNumber": For federal grants, provide the CFDA/Assistance Listing number (e.g., "93.224"). For non-federal grants, use "N/A".
 - "status": One of "Open", "Upcoming", or "Rolling"
 - "grantCategory": The primary category this grant falls under (e.g., "IT", "Security", "Finance", "Hardware", "Software", "Training & Workforce Development", "Infrastructure", "Research", "Community Development", "Environmental", "Capital Improvement", or other relevant category)
 

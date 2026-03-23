@@ -39,6 +39,8 @@ export interface Grant {
   fundingRange: string;
   deadline: string;
   applicationUrl: string;
+  searchInstructions: string;
+  cfdaNumber: string;
   status: "Open" | "Upcoming" | "Rolling";
   grantCategory: string;
 }
