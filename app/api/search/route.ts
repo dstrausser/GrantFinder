@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are an expert grant researcher. Search for and identify all relevant state, local, and federal grants that match the following criteria. Focus ONLY on grants with OPEN or UPCOMING application windows.
 
-CRITICAL: Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
+CRITICAL REQUIREMENTS:
+- Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
+- ONLY include grants where the APPLICANT is a non-profit organization, agency, or institution — NOT grants for individuals. The non-profit is the entity applying for and receiving the funding. For example, a vocational services non-profit would apply for a grant to fund its programs that serve individuals — the grant goes to the organization, not to the people it serves.
 
 Search Criteria:
 - Location: ${params.city}, ${params.county ? params.county + ", " : ""}${params.state}
@@ -39,10 +41,11 @@ Search Criteria:
 Instructions:
 1. Search comprehensively across federal (grants.gov, HHS, HUD, DOE, USDA, etc.), state-level, and local/county grant programs.
 2. ONLY include grants where the deadline is AFTER ${today} or the grant has rolling/continuous applications.
-3. For each grant found, provide accurate and detailed information.
-4. Focus on grants specifically relevant to ${nonprofitFilter} in ${grantFilter}.
-5. Include both well-known major grants and lesser-known local opportunities.
-6. Also include a "grantCategory" field to classify each grant for filtering purposes.
+3. ONLY include grants where a non-profit organization is an eligible applicant. Exclude grants that are only available to individuals, families, or for-profit businesses.
+4. For each grant found, provide accurate and detailed information.
+5. Focus on grants specifically relevant to ${nonprofitFilter} in ${grantFilter}.
+6. Include both well-known major grants and lesser-known local opportunities.
+7. Also include a "grantCategory" field to classify each grant for filtering purposes.
 
 Return your response as a JSON array of grant objects. Each object must have exactly these fields:
 - "name": Full official name of the grant program

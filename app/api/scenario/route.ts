@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are an expert grant researcher. A non-profit organization has described their situation and needs. Analyze their scenario and find the most relevant grants that could help fund their project or need.
 
-CRITICAL: Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
+CRITICAL REQUIREMENTS:
+- Today's date is ${today}. Do NOT include any grants whose application deadline has already passed. Only include grants that are currently accepting applications, have upcoming application windows, or accept applications on a rolling basis.
+- ONLY include grants where the APPLICANT is a non-profit organization, agency, or institution — NOT grants for individuals. The non-profit is the entity applying for and receiving the funding. For example, if a vocational services non-profit says "I need to replace our phone system", the grant should go to the non-profit organization to fund that purchase — not to an individual person. The non-profit operates programs and services, and needs organizational funding to do so.
 
 Scenario described by the organization:
 "${scenario}"
@@ -33,12 +35,13 @@ Scenario described by the organization:
 ${locationContext}
 
 Instructions:
-1. Analyze the scenario to understand what type of funding they need.
+1. Analyze the scenario to understand what type of organizational funding the non-profit needs.
 2. Search comprehensively across federal (grants.gov, HHS, HUD, DOE, USDA, FCC, etc.), state-level, and local/county grant programs.
-3. Match grants that are most relevant to their specific described need.
+3. Match grants that are most relevant to their specific described need, where the non-profit is the eligible applicant.
 4. ONLY include grants where the deadline is AFTER ${today} or the grant has rolling/continuous applications.
-5. Include both well-known major grants and lesser-known local opportunities.
-6. Prioritize grants that most closely match the described scenario.
+5. ONLY include grants where a non-profit organization is an eligible applicant. Exclude grants that are only available to individuals, families, or for-profit businesses.
+6. Include both well-known major grants and lesser-known local opportunities.
+7. Prioritize grants that most closely match the described scenario.
 
 Return your response as a JSON array of grant objects. Each object must have exactly these fields:
 - "name": Full official name of the grant program
