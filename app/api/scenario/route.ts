@@ -52,7 +52,7 @@ Return your response as a JSON array of grant objects. Each object must have exa
 - "eligibility": Key eligibility requirements for non-profits
 - "fundingRange": The funding amount range (e.g., "$10,000 - $500,000")
 - "deadline": Application deadline (must be after ${today}) or "Rolling" if applications are accepted on a rolling basis
-- "applicationUrl": The URL where applications can be submitted, or "N/A" if not available
+- "applicationUrl": The DIRECT URL to the specific grant opportunity listing or application page — NOT a general agency homepage. For federal grants, provide the specific grants.gov opportunity link (e.g., https://www.grants.gov/search-results-detail/XXXXX). For state/local grants, provide the direct link to that specific grant's page or application portal. If the exact URL is not known, provide "N/A" rather than linking to a general website.
 - "status": One of "Open", "Upcoming", or "Rolling"
 - "grantCategory": The primary category this grant falls under (e.g., "IT", "Security", "Finance", "Hardware", "Software", "Training & Workforce Development", "Infrastructure", "Research", "Community Development", "Environmental", "Capital Improvement", "Telecommunications", or other relevant category)
 - "matchReason": A 1-2 sentence explanation of why this grant is relevant to the described scenario
