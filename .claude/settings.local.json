@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-npm --no-turbopack)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --no-import-alias --use-npm --no-turbopack)",
+      "Read(//c/Users/dstrausser/OneDrive - Insource Services Inc/Attachments/Desktop/**)",
+      "Bash(npx create-next-app@latest grant-finder-temp --typescript --tailwind --eslint --app --no-src-dir --no-import-alias --use-npm --no-turbopack)",
+      "Bash(npm init:*)",
+      "Bash(sed -i 's/\"\"name\"\": \"\"GrantFinder\"\"/\"\"name\"\": \"\"grant-finder\"\"/' package.json)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(vercel --version)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}
